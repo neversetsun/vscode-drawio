@@ -17,6 +17,7 @@ import { CustomizedDrawioClient } from "./DrawioClient";
 import { extname } from "path";
 import { DrawioEditorService } from "./DrawioEditorService";
 import { BufferImpl } from "./utils/buffer";
+import { FilePreProcessor } from "./utils/FilePreProcessor";
 
 export class DrawioEditorProviderBinary
 	implements CustomEditorProvider<DrawioBinaryDocument>
@@ -161,7 +162,9 @@ export class DrawioBinaryDocument implements CustomDocument {
 		this._isDirty = false;
 		if (this.uri.fsPath.endsWith(".png")) {
 			const buffer = await workspace.fs.readFile(this.uri);
-			await this.drawioClient.loadPngWithEmbeddedXml(buffer);
+			// Pre-process the binary file before loading
+			const processedBuffer = await FilePreProcessor.processBinaryFile(this.uri, buffer);
+			await this.drawioClient.loadPngWithEmbeddedXml(processedBuffer);
 		} else {
 			throw new Error("Invalid file extension");
 		}

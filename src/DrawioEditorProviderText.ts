@@ -10,9 +10,10 @@ import {
 } from "vscode";
 import formatter = require("xml-formatter");
 import { DrawioEditorService } from "./DrawioEditorService";
+import { FilePreProcessor } from "./utils/FilePreProcessor";
 
 export class DrawioEditorProviderText implements CustomTextEditorProvider {
-	constructor(private readonly drawioEditorService: DrawioEditorService) {}
+	constructor(private readonly drawioEditorService: DrawioEditorService) { }
 
 	public async resolveCustomTextEditor(
 		document: TextDocument,
@@ -23,15 +24,29 @@ export class DrawioEditorProviderText implements CustomTextEditorProvider {
 			const readonlySchemes = new Set(["git", "conflictResolution"]);
 			const isReadOnly = readonlySchemes.has(document.uri.scheme);
 
-			const editor =
-				await this.drawioEditorService.createDrawioEditorInWebview(
-					webviewPanel,
-					{
-						kind: "text",
-						document,
-					},
-					{ isReadOnly }
-				);
+			// Pre-process the file content before loading
+			const processedContent = await FilePreProcessor.processTextFile(
+				document.uri,
+				document.getText()
+			);
+
+			// Apply the processed content to the document
+			const workspaceEdit = new WorkspaceEdit();
+			workspaceEdit.replace(
+				document.uri,
+				new Range(0, 0, document.lineCount, 0),
+				processedContent
+			);
+			await workspace.applyEdit(workspaceEdit);
+
+			const editor = await this.drawioEditorService.createDrawioEditorInWebview(
+				webviewPanel,
+				{
+					kind: "text",
+					document,
+				},
+				{ isReadOnly }
+			);
 			const drawioClient = editor.drawioClient;
 
 			interface NormalizedDocument {
